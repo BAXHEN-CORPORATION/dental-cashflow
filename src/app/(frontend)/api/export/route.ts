@@ -26,49 +26,30 @@ export async function GET(req: NextRequest) {
       where,
       limit: 10000,
       sort: 'transactionDate',
+      req,
     })
 
     const transactions = result.docs
-
-    // Build workbook
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'Dental Cashflow'
 
-    // Helper: format monetary cell
-    function moneyCell(value: number) {
-      return {
-        value: value / 100,
-        numFmt: 'R$ #,##0.00',
-      }
-    }
-
-    // ── Sheet 1: Resumo ────────────────────────────────────────
-    const summarySheet = workbook.addWorksheet('Resumo')
-    summarySheet.columns = [
+    // Sheet 1: Resumo
+    const summary = workbook.addWorksheet('Resumo')
+    summary.columns = [
       { header: 'Métrica', key: 'label', width: 25 },
       { header: 'Valor', key: 'value', width: 20 },
     ]
+    const income = transactions.filter((t) => t.type === 'income').reduce((s, t) => s + t.amountInCents, 0)
+    const expense = transactions.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amountInCents, 0)
 
-    const income = transactions
-      .filter((t) => t.type === 'income')
-      .reduce((s, t) => s + t.amountInCents, 0)
-    const expense = transactions
-      .filter((t) => t.type === 'expense')
-      .reduce((s, t) => s + t.amountInCents, 0)
-    const balance = income - expense
+    summary.addRow({ label: 'Período', value: `${startDate || '—'} a ${endDate || '—'}` })
+    summary.addRow({ label: 'Gerado em', value: new Date().toLocaleDateString('pt-BR') })
+    summary.addRow({})
+    summary.addRow({ label: 'Total de Entradas', value: formatCurrency(income) })
+    summary.addRow({ label: 'Total de Saídas', value: formatCurrency(expense) })
+    summary.addRow({ label: 'Saldo', value: formatCurrency(income - expense) })
 
-    summarySheet.addRow({ label: 'Período', value: `${startDate || '—'} a ${endDate || '—'}` })
-    summarySheet.addRow({ label: 'Gerado em', value: new Date().toLocaleDateString('pt-BR') })
-    summarySheet.addRow({ label: '' })
-    summarySheet.addRow({ label: 'Total de Entradas', value: formatCurrency(income) })
-    summarySheet.addRow({ label: 'Total de Saídas', value: formatCurrency(expense) })
-    summarySheet.addRow({ label: 'Saldo', value: formatCurrency(balance) })
-
-    summarySheet.getCell('B4').numFmt = 'R$ #,##0.00'
-    summarySheet.getCell('B5').numFmt = 'R$ #,##0.00'
-    summarySheet.getCell('B6').numFmt = 'R$ #,##0.00'
-
-    // ── Sheet 2: Movimentações ──────────────────────────────────
+    // Sheet 2: Movimentações
     const txSheet = workbook.addWorksheet('Movimentações')
     txSheet.columns = [
       { header: 'Data', key: 'date', width: 12 },
@@ -96,27 +77,19 @@ export async function GET(req: NextRequest) {
       })
       row.getCell('amount').numFmt = 'R$ #,##0.00'
     }
-
-    // Freeze header
     txSheet.views = [{ state: 'frozen', ySplit: 1 }]
+    txSheet.autoFilter = { from: 'A1', to: `I${transactions.length + 1}` }
 
-    // Auto-filter
-    txSheet.autoFilter = {
-      from: 'A1',
-      to: `I${transactions.length + 1}`,
-    }
-
-    // ── Sheet 3: Receitas ───────────────────────────────────────
-    const incomeSheet = workbook.addWorksheet('Receitas')
-    incomeSheet.columns = [
+    // Sheet 3: Receitas
+    const inSheet = workbook.addWorksheet('Receitas')
+    inSheet.columns = [
       { header: 'Data', key: 'date', width: 12 },
       { header: 'Descrição', key: 'description', width: 40 },
       { header: 'Categoria', key: 'category', width: 20 },
       { header: 'Valor', key: 'amount', width: 15 },
     ]
-
     for (const tx of transactions.filter((t) => t.type === 'income')) {
-      const row = incomeSheet.addRow({
+      const row = inSheet.addRow({
         date: formatDate(tx.transactionDate),
         description: tx.description,
         category: typeof tx.category === 'object' ? tx.category?.name : '',
@@ -124,19 +97,18 @@ export async function GET(req: NextRequest) {
       })
       row.getCell('amount').numFmt = 'R$ #,##0.00'
     }
-    incomeSheet.views = [{ state: 'frozen', ySplit: 1 }]
+    inSheet.views = [{ state: 'frozen', ySplit: 1 }]
 
-    // ── Sheet 4: Despesas ───────────────────────────────────────
-    const expenseSheet = workbook.addWorksheet('Despesas')
-    expenseSheet.columns = [
+    // Sheet 4: Despesas
+    const outSheet = workbook.addWorksheet('Despesas')
+    outSheet.columns = [
       { header: 'Data', key: 'date', width: 12 },
       { header: 'Descrição', key: 'description', width: 40 },
       { header: 'Categoria', key: 'category', width: 20 },
       { header: 'Valor', key: 'amount', width: 15 },
     ]
-
     for (const tx of transactions.filter((t) => t.type === 'expense')) {
-      const row = expenseSheet.addRow({
+      const row = outSheet.addRow({
         date: formatDate(tx.transactionDate),
         description: tx.description,
         category: typeof tx.category === 'object' ? tx.category?.name : '',
@@ -144,15 +116,12 @@ export async function GET(req: NextRequest) {
       })
       row.getCell('amount').numFmt = 'R$ #,##0.00'
     }
-    expenseSheet.views = [{ state: 'frozen', ySplit: 1 }]
+    outSheet.views = [{ state: 'frozen', ySplit: 1 }]
 
-    // Write buffer
     const buffer = await workbook.xlsx.writeBuffer()
-
     return new NextResponse(buffer, {
       headers: {
-        'Content-Type':
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="cashflow-${new Date().toISOString().split('T')[0]}.xlsx"`,
       },
     })

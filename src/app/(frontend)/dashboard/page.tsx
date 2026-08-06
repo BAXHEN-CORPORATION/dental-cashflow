@@ -28,7 +28,7 @@ async function getData() {
 
   const transactions: FinanceTransaction[] = txData.docs.map((tx: Record<string, unknown>) => ({
     id: tx.id as string,
-    transactionDate: tx.transactionDate as string,
+    transactionDate: String(tx.transactionDate).substring(0, 10), // normalize to YYYY-MM-DD
     type: tx.type as 'income' | 'expense' | 'transfer',
     description: tx.description as string,
     category: (tx.category as { name?: string } | string | undefined)

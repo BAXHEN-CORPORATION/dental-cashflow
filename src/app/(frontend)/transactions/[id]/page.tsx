@@ -37,17 +37,17 @@ async function getData(id: string) {
     transaction: tx,
     relatedData: {
       categories: catData.docs.map((c: Record<string, unknown>) => ({
-        id: c.id as string,
+        id: String(c.id),
         name: c.name as string,
         type: c.type as string,
         requiresGuide: c.requiresGuide as boolean,
       })),
       accounts: accData.docs.map((a: Record<string, unknown>) => ({
-        id: a.id as string,
+        id: String(a.id),
         name: a.name as string,
       })),
       paymentMethods: pmData.docs.map((p: Record<string, unknown>) => ({
-        id: p.id as string,
+        id: String(p.id),
         name: p.name as string,
       })),
     },

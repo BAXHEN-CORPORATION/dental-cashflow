@@ -2,9 +2,7 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
-import { TransactionTable } from '@/components/finance/transaction-table'
-import { TransactionFilters } from '@/components/finance/transaction-filters'
-import { DeleteTransactionDialog } from '@/components/finance/delete-dialog'
+import { FilteredTransactions } from '@/components/finance/filtered-transactions'
 
 async function getData() {
   const h = await headers()
@@ -41,17 +39,17 @@ export default async function TransactionsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Movimentações</h1>
-        <Button asChild>
-          <Link href="/transactions/new">
-            <Plus className="mr-2 size-4" />
-            Nova
-          </Link>
+        <Button render={<Link href="/transactions/new" />} nativeButton={false}>
+          <Plus data-icon="inline-start" />
+          Nova
         </Button>
       </div>
 
-      <TransactionFilters categories={categories} accounts={accounts} />
-      <TransactionTable transactions={transactions} />
-      <DeleteTransactionDialog />
+      <FilteredTransactions
+        transactions={transactions}
+        categories={categories}
+        accounts={accounts}
+      />
     </div>
   )
 }

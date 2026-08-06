@@ -26,6 +26,7 @@ export function DeleteTransactionDialog() {
     try {
       const res = await fetch(`/api/transactions/${transactionToDelete}`, {
         method: 'DELETE',
+        credentials: 'include',
       })
       if (!res.ok) {
         const err = await res.json()

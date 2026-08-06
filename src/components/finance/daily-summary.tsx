@@ -49,7 +49,7 @@ export function DailySummaryTable({ summaries }: Props) {
               return (
                 <TableRow key={day.date}>
                   <TableCell className="tabular-nums whitespace-nowrap">
-                    {new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                    {new Date(day.date.substring(0, 10) + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-green-600">
                     {formatCurrency(day.totalIncome)}

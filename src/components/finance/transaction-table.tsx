@@ -96,7 +96,7 @@ export function TransactionTable({ transactions }: Props) {
           {transactions.map((tx) => (
             <TableRow key={tx.id}>
               <TableCell className="tabular-nums whitespace-nowrap">
-                {new Date(tx.transactionDate + 'T00:00:00').toLocaleDateString('pt-BR')}
+                {new Date(String(tx.transactionDate).substring(0, 10) + 'T00:00:00').toLocaleDateString('pt-BR')}
               </TableCell>
               <TableCell>
                 <Badge variant={typeVariant[tx.type]}>

@@ -20,9 +20,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { transactionSchema, type TransactionInput } from '@/lib/finance/transaction-schema'
 
 interface RelatedData {
-  categories: { id: string; name: string; type: string; requiresGuide?: boolean }[]
-  accounts: { id: string; name: string }[]
-  paymentMethods: { id: string; name: string }[]
+  categories: { id: number; name: string; type: string; requiresGuide?: boolean }[]
+  accounts: { id: number; name: string }[]
+  paymentMethods: { id: number; name: string }[]
 }
 
 interface Props {
@@ -32,30 +32,67 @@ interface Props {
   transactionId?: string
 }
 
+// Base UI Select uses `items` prop for value→label resolution.
+// Use strings everywhere to match Select value comparison (Object.is).
+const typeItems = [
+  { value: 'income', label: 'Entrada' },
+  { value: 'expense', label: 'Saída' },
+  { value: 'transfer', label: 'Transferência' },
+]
+
 export function TransactionForm({ defaultValues, relatedData, isEdit, transactionId }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+
+  // Map related data to { value, label } arrays for Base UI Select items prop
+  const accountItems = relatedData.accounts.map((a) => ({
+    value: String(a.id),
+    label: a.name,
+  }))
+
+  const categoryItems = relatedData.categories.map((c) => ({
+    value: String(c.id),
+    label: c.name + (c.requiresGuide ? ' (guia)' : ''),
+  }))
+
+  const paymentMethodItems = relatedData.paymentMethods.map((p) => ({
+    value: String(p.id),
+    label: p.name,
+  }))
+
+  const normalizedDefaults = defaultValues
+    ? {
+        ...defaultValues,
+        category: defaultValues.category != null ? String(defaultValues.category) : undefined,
+        account: defaultValues.account != null ? String(defaultValues.account) : undefined,
+        destinationAccount:
+          defaultValues.destinationAccount != null
+            ? String(defaultValues.destinationAccount)
+            : undefined,
+        paymentMethod:
+          defaultValues.paymentMethod != null ? String(defaultValues.paymentMethod) : undefined,
+      }
+    : undefined
 
   const {
     register,
     handleSubmit,
     watch,
     setValue,
-    reset,
     formState: { errors },
   } = useForm<TransactionInput>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       transactionDate: new Date().toISOString().split('T')[0],
       type: 'expense',
-      ...defaultValues,
+      ...normalizedDefaults,
     },
   })
 
   const type = watch('type')
   const categoryId = watch('category')
 
-  const selectedCategory = relatedData.categories.find((c) => c.id === categoryId)
+  const selectedCategory = relatedData.categories.find((c) => String(c.id) === categoryId)
   const showGuideFields = selectedCategory?.requiresGuide ?? false
 
   // Reset conditional fields on type change
@@ -81,15 +118,23 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
   async function onSubmit(data: TransactionInput) {
     setLoading(true)
     try {
-      const url = isEdit
-        ? `/api/transactions/${transactionId}`
-        : '/api/transactions'
+      const url = isEdit ? `/api/transactions/${transactionId}` : '/api/transactions'
       const method = isEdit ? 'PATCH' : 'POST'
+
+      // Convert relationship IDs from string back to number for Payload numeric IDs
+      const payload = {
+        ...data,
+        category: data.category ? Number(data.category) : undefined,
+        account: Number(data.account),
+        destinationAccount: data.destinationAccount ? Number(data.destinationAccount) : undefined,
+        paymentMethod: data.paymentMethod ? Number(data.paymentMethod) : undefined,
+      }
 
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
+        credentials: 'include',
       })
 
       if (!res.ok) {
@@ -107,9 +152,15 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
     }
   }
 
-  const incomeCategories = relatedData.categories.filter((c) => c.type === 'income')
-  const expenseCategories = relatedData.categories.filter((c) => c.type === 'expense')
-  const categories = type === 'income' ? incomeCategories : expenseCategories
+  const incomeCategories = categoryItems.filter((c) =>
+    relatedData.categories.find((rc) => String(rc.id) === c.value && rc.type === 'income'),
+  )
+  const expenseCategories = categoryItems.filter((c) =>
+    relatedData.categories.find((rc) => String(rc.id) === c.value && rc.type === 'expense'),
+  )
+  const visibleCategories = type === 'income' ? incomeCategories : expenseCategories
+
+  const destAccountItems = accountItems.filter((a) => a.value !== watch('account'))
 
   return (
     <Card>
@@ -122,11 +173,7 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="transactionDate">Data</Label>
-              <Input
-                id="transactionDate"
-                type="date"
-                {...register('transactionDate')}
-              />
+              <Input id="transactionDate" type="date" {...register('transactionDate')} />
               {errors.transactionDate && (
                 <p className="text-xs text-destructive">{errors.transactionDate.message}</p>
               )}
@@ -134,6 +181,7 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
             <div className="space-y-2">
               <Label htmlFor="type">Tipo</Label>
               <Select
+                items={typeItems}
                 value={type}
                 onValueChange={(v) => setValue('type', v as TransactionInput['type'])}
               >
@@ -141,9 +189,11 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="income">Entrada</SelectItem>
-                  <SelectItem value="expense">Saída</SelectItem>
-                  <SelectItem value="transfer">Transferência</SelectItem>
+                  {typeItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -165,16 +215,17 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
                 {type === 'transfer' ? 'Conta de Origem' : 'Conta'}
               </Label>
               <Select
-                value={watch('account')}
-                onValueChange={(v) => setValue('account', v)}
+                items={accountItems}
+                value={watch('account') ?? ''}
+                onValueChange={(v) => setValue('account', v ?? '')}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {relatedData.accounts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name}
+                  {accountItems.map((a) => (
+                    <SelectItem key={a.value} value={a.value}>
+                      {a.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -188,20 +239,19 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
               <div className="space-y-2">
                 <Label htmlFor="destinationAccount">Conta de Destino</Label>
                 <Select
-                  value={watch('destinationAccount')}
-                  onValueChange={(v) => setValue('destinationAccount', v)}
+                  items={destAccountItems}
+                  value={watch('destinationAccount') ?? ''}
+                  onValueChange={(v) => setValue('destinationAccount', v ?? '')}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {relatedData.accounts
-                      .filter((a) => a.id !== watch('account'))
-                      .map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}
-                        </SelectItem>
-                      ))}
+                    {destAccountItems.map((a) => (
+                      <SelectItem key={a.value} value={a.value}>
+                        {a.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 {errors.destinationAccount && (
@@ -244,17 +294,17 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
               <div className="space-y-2">
                 <Label htmlFor="category">Categoria</Label>
                 <Select
+                  items={visibleCategories}
                   value={watch('category') ?? ''}
-                  onValueChange={(v) => setValue('category', v || undefined)}
+                  onValueChange={(v) => setValue('category', v ?? undefined)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                        {c.requiresGuide ? ' (guia)' : ''}
+                    {visibleCategories.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -267,16 +317,17 @@ export function TransactionForm({ defaultValues, relatedData, isEdit, transactio
               <div className="space-y-2">
                 <Label htmlFor="paymentMethod">Forma de Pagamento</Label>
                 <Select
+                  items={paymentMethodItems}
                   value={watch('paymentMethod') ?? ''}
-                  onValueChange={(v) => setValue('paymentMethod', v || undefined)}
+                  onValueChange={(v) => setValue('paymentMethod', v ?? undefined)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {relatedData.paymentMethods.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
+                    {paymentMethodItems.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

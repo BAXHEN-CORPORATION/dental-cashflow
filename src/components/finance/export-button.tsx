@@ -20,7 +20,9 @@ export function ExportButton({ startDate, endDate }: Props) {
       if (startDate) params.set('startDate', startDate)
       if (endDate) params.set('endDate', endDate)
 
-      const res = await fetch(`/api/export?${params.toString()}`)
+      const res = await fetch(`/api/export?${params.toString()}`, {
+        credentials: 'include',
+      })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: 'Erro ao gerar exportação' }))
         throw new Error(err.message)
@@ -46,7 +48,7 @@ export function ExportButton({ startDate, endDate }: Props) {
 
   return (
     <Button onClick={handleExport} disabled={loading} variant="outline">
-      <Download className="mr-2 size-4" />
+      <Download data-icon="inline-start" />
       {loading ? 'Gerando...' : 'Exportar Excel'}
     </Button>
   )

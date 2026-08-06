@@ -11,9 +11,7 @@ import {
   FileSpreadsheet,
   Settings,
   Menu,
-  X,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useState } from 'react'
 
@@ -60,10 +58,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Sheet */}
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="fixed left-3 top-3 z-50 lg:hidden">
-            <Menu className="size-4" />
-          </Button>
+        <SheetTrigger className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-input bg-background shadow-xs outline-ring/50 transition-[color,box-shadow] hover:bg-accent hover:text-accent-foreground fixed left-3 top-3 z-50 lg:hidden cursor-pointer">
+          <Menu className="size-4" />
         </SheetTrigger>
         <SheetContent side="left" className="w-60 p-0">
           <div className="flex h-14 items-center border-b px-4">
