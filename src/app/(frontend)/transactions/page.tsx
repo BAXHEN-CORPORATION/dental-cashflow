@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { TransactionTable } from '@/components/finance/transaction-table'
 import { TransactionFilters } from '@/components/finance/transaction-filters'
+import { DeleteTransactionDialog } from '@/components/finance/delete-dialog'
 
 async function getData() {
   const h = await headers()
@@ -50,6 +51,7 @@ export default async function TransactionsPage() {
 
       <TransactionFilters categories={categories} accounts={accounts} />
       <TransactionTable transactions={transactions} />
+      <DeleteTransactionDialog />
     </div>
   )
 }
