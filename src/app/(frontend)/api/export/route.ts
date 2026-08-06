@@ -15,15 +15,16 @@ export async function GET(req: NextRequest) {
     const startDate = url.searchParams.get('startDate')
     const endDate = url.searchParams.get('endDate')
 
-    const where: Record<string, unknown> = {}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = {}
     if (startDate) where.transactionDate = { greater_than_equal: startDate }
     if (endDate) {
-      where.transactionDate = { ...(where.transactionDate as object), less_than_equal: endDate }
+      where.transactionDate = { ...where.transactionDate, less_than_equal: endDate }
     }
 
     const result = await payload.find({
       collection: 'transactions',
-      where,
+      where: Object.keys(where).length > 0 ? where : undefined,
       limit: 10000,
       sort: 'transactionDate',
       req,
