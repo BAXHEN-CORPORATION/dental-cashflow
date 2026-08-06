@@ -12,9 +12,9 @@ interface Transaction {
   type: 'income' | 'expense' | 'transfer'
   description: string
   amountInCents: number
-  category?: { name: string } | string | number
-  account: { name: string } | string | number
-  destinationAccount?: { name: string } | string | number
+  category?: { id?: number; name?: string } | string | number
+  account: { id?: number; name?: string } | string | number
+  destinationAccount?: { id?: number; name?: string } | string | number
 }
 
 interface Props {
@@ -37,13 +37,13 @@ export function FilteredTransactions({ transactions, categories, accounts }: Pro
 
       // Category
       if (filters.category && filters.category !== 'all') {
-        const catId = typeof tx.category === 'object' ? (tx.category as { id: number }).id : tx.category
+        const catId = typeof tx.category === 'object' && tx.category !== null ? (tx.category as unknown as { id: number }).id : tx.category
         if (String(catId) !== filters.category) return false
       }
 
       // Account
       if (filters.account && filters.account !== 'all') {
-        const accId = typeof tx.account === 'object' ? (tx.account as { id: number }).id : tx.account
+        const accId = typeof tx.account === 'object' ? (tx.account as unknown as { id: number }).id : tx.account
         if (String(accId) !== filters.account) return false
       }
 

@@ -3,7 +3,7 @@ import { create } from 'zustand'
 export interface FinanceFilters {
   startDate?: string
   endDate?: string
-  type?: 'income' | 'expense' | 'transfer'
+  type?: 'income' | 'expense' | 'transfer' | 'all'
   category?: string
   account?: string
   search?: string

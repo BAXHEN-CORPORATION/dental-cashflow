@@ -14,16 +14,6 @@ import { Button } from '@/components/ui/button'
 import { Pencil, Trash2 } from 'lucide-react'
 import { useFinanceStore } from '@/lib/store'
 import { formatCurrency } from '@/lib/finance/money'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 
 interface Transaction {
   id: string
@@ -31,9 +21,9 @@ interface Transaction {
   type: 'income' | 'expense' | 'transfer'
   description: string
   amountInCents: number
-  category?: { name: string } | string
-  account: { name: string } | string
-  destinationAccount?: { name: string } | string
+  category?: { id?: number; name?: string } | string | number
+  account: { id?: number; name?: string } | string | number
+  destinationAccount?: { id?: number; name?: string } | string | number
 }
 
 interface Props {
@@ -60,11 +50,13 @@ const amountClass: Record<string, string> = {
 
 function getCategoryName(category: Transaction['category']): string {
   if (!category) return '—'
-  return typeof category === 'object' ? category.name : category
+  if (typeof category === 'object') return category.name ?? String(category.id ?? '')
+  return String(category)
 }
 
 function getAccountName(account: Transaction['account']): string {
-  return typeof account === 'object' ? account.name : account
+  if (typeof account === 'object') return account.name ?? String(account.id ?? '')
+  return String(account)
 }
 
 export function TransactionTable({ transactions }: Props) {
@@ -112,10 +104,8 @@ export function TransactionTable({ transactions }: Props) {
               </TableCell>
               <TableCell>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/transactions/${tx.id}`}>
-                      <Pencil className="size-3.5" />
-                    </Link>
+                  <Button variant="ghost" size="icon" render={<Link href={`/transactions/${tx.id}`} />} nativeButton={false}>
+                    <Pencil className="size-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
